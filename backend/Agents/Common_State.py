@@ -24,9 +24,9 @@ class State(TypedDict):
     #Email Agent
     sender_address : Optional[str]
     Email_Feedback: Optional[str]
-    to_emails : Optional[list[str]]
-    cc_emails : Optional[list[str]]
-    bcc_emails : Optional[list[str]]
+    to_email : Optional[list[str]]
+    cc_email : Optional[list[str]]
+    bcc_email : Optional[list[str]]
     subject : Optional[str]
     body : Optional[str]
     email_status : Optional[str]

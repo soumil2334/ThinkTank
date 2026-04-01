@@ -8,7 +8,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from backend.Agents.Common_State import State
 from langgraph.types import Command, interrupt
-
+import os
 load_dotenv()
 
 class Email_Arguments(BaseModel):
@@ -17,8 +17,8 @@ class Email_Arguments(BaseModel):
 
 def Email_agent(state : State):
 
-    feedback=state['Email_Feedback']
-    last_generated_body=state['body']
+    feedback=state.get('Email_Feedback', None)
+    last_generated_body=state.get('body', '')
 
     LLM_instruction = state['LLM_instruction']
     user_message= state['messages'][-1].content
@@ -30,6 +30,7 @@ You are an AI assistant responsible for drafting a professional email based on t
 
 ##Feedback for last generation
 Feedback : {feedback} for Output : {last_generated_body}
+if feedback empty ignore it
 
 ## Inputs
 
@@ -91,7 +92,6 @@ Produce a clean, professional email draft that can be easily finalized by a huma
     }
 
 
-
 def review_node(state: State):
     user_input = interrupt({
         "subject": state["subject"],
@@ -101,6 +101,10 @@ def review_node(state: State):
     updated_subject = user_input.get("subject", state["subject"])
     updated_body = user_input.get("body", state["body"])
     status = user_input.get("status")
+    sender_adress=user_input.get('sender')
+    to_email = user_input.get('to')
+    cc=user_input.get('cc', None)
+    bcc=user_input.get('bcc', None)
 
     if status == "approved":
         return Command(
@@ -108,7 +112,11 @@ def review_node(state: State):
             update={
                 "subject": updated_subject,
                 "body": updated_body,
-                "status": "approved"
+                "status": "approved",
+                "to_email" : to_email,
+                "cc_email" : cc,
+                "bcc_email" : bcc,
+                "sender_address" : sender_adress
             }
         )
     else:
@@ -125,19 +133,24 @@ def send_email(state : State):
     sender= state["sender_address"]
     app_password = os.getenv('GOOGLE_MAIL')
 
-    to_email=state['to_emails']
-    cc_email=state['cc_emails']
-    bcc_email = state['bcc_emails']
+    to_email=state['to_email']
+    cc_email=state['cc_email']
+    bcc_email = state['bcc_email']
     
     msg=MIMEMultipart()
     msg["From"] = sender
     msg["To"] = ", ".join(to_email)
-    msg["Cc"] = ", ".join(cc_email)
+
+    if cc_email:
+        msg["Cc"] = ", ".join(cc_email)
+    if bcc_email:
+        msg["Bcc"] = ", ".join(bcc_email)
+
     msg["Subject"] = state['subject']
-    msg.attach(MIMEText(body, 'plain'))
     
     body=state['body']
-    all_recipients = to_emails + cc_emails + bcc_emails
+    msg.attach(MIMEText(body, 'plain'))
+    all_recipients = to_email + cc_email + bcc_email
 
     try:
         with smtplib.SMTP("smtp.gmail.com", 587) as server:
