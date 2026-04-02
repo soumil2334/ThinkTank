@@ -11,6 +11,7 @@ class State(TypedDict):
 
     ## PDF
     pdf_bytes : Optional[bytes]
+    pdf_html : Optional[str]
     pdf_base64 : Optional[str]
     PDF_feedback : Optional[str]
     Last_PDF_Agent_output : Optional[str] #feedback after HITL

@@ -175,7 +175,7 @@ def get_webpage(query:str, A_dict_list: list):
     return web_content_chunks
     
 
-async def Search_agent(state:State):
+def Search_agent(state:State):
     query = state['LLM_instruction']
     
     search_results=search(query=query)
@@ -184,7 +184,7 @@ async def Search_agent(state:State):
 
     search_string=''
 
-    for key, value in web_search_dict:
+    for key, value in web_search_dict.items():
         search_string+=f'Source : {key}\n Result : {value} \n\n'
 
     instruction=f"""You are an AI assistant tasked with answering a user’s query using provided web search results.
