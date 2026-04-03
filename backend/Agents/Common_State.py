@@ -1,4 +1,5 @@
 from typing import TypedDict, Annotated, Optional
+from typing import List
 import base64
 from langgraph.graph.message import add_messages, BaseMessage
 
@@ -14,7 +15,7 @@ class State(TypedDict):
     pdf_html : Optional[str]
     pdf_base64 : Optional[str]
     PDF_feedback : Optional[str]
-    Last_PDF_Agent_output : Optional[str] #feedback after HITL
+    Agent1Output : Optional[dict]
 
     #Google Meet
     Meet_dict : Optional[dict]
@@ -31,3 +32,9 @@ class State(TypedDict):
     subject : Optional[str]
     body : Optional[str]
     email_status : Optional[str]
+
+    #Trello Details
+    board_name : str
+    members_list : list[dict] #{'member_name, member_role, member_trello}
+    board_outline : Optional[dict]
+    Board_feedback : Optional[str]
