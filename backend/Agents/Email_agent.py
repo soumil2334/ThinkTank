@@ -108,7 +108,7 @@ def review_node(state: State):
 
     if status == "approved":
         return Command(
-            goto="send_email",
+            goto="Send_Email",
             update={
                 "subject": updated_subject,
                 "body": updated_body,
@@ -121,7 +121,7 @@ def review_node(state: State):
         )
     else:
         return Command(
-            goto="Email_agent",
+            goto="Email_Content",
             update={
                 "subject": updated_subject,
                 "body": updated_body,
@@ -157,7 +157,7 @@ def send_email(state : State):
             server.starttls()
             server.login(sender, app_password)
             server.sendmail(sender, all_recipients, msg.as_string())
-        return {'email_status': 'sent successfully'}
+        return {'email_status': 'sent successfully', 'messages': [AIMessage(content='email sent successfully')]}
 
     except smtplib.SMTPException as e:
         return {'email_status': f'failed: {str(e)}'}

@@ -35,6 +35,7 @@ class State(TypedDict):
 
     #Trello Details
     board_name : str
+    board_id : str
     members_list : list[dict] #{'member_name, member_role, member_trello}
     board_outline : Optional[dict]
     Board_feedback : Optional[str]

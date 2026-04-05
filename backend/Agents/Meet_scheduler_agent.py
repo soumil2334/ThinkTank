@@ -1,13 +1,14 @@
-from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.graph import START, END
 from datetime import datetime, timedelta
 from langgraph.types import Command, interrupt
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
-from Common_State import State
+from backend.Agents.Common_State import State
 from dotenv import load_dotenv
 import pytz
 import uuid
@@ -26,8 +27,8 @@ class Meeting_detail(BaseModel):
     end_date_time : str = Field(description='When the meeting will end will be end_date_time, also give this is ISO format')
 
 def Scheduler_Agent(state : State):
-    Last_output=state['Last_Scheduler_Agent_output']
-    LLM_instruction = state['LLM_instruction']
+    Last_output=state.get('Last_Scheduler_Agent_output')
+    LLM_instruction = state.get('LLM_instruction')
     feedback=state.get('Meet_feedback', '')
     # Fetching meeting details from user's last interaction
     user_input=state['messages'][-1].content
@@ -36,9 +37,8 @@ def Scheduler_Agent(state : State):
     prompt = f"""
 Extract meeting details from the text.
 
-User feedback on last attempt to extract meeting details : 
+User feedback on if there were any last attempt to extract meeting details : 
 Feedback : {feedback}  for output : {Last_output}
-if empty then ignore
 
 today's date for reference : 
 {today}
@@ -79,20 +79,22 @@ Text:
     }
 
 
-def get_creds():
-    if os.path.exists("token.json"):
-        return Credentials.from_authorized_user_file("token.json", SCOPES)
+def get_calendar_service():
+    creds = None
 
-    flow = InstalledAppFlow.from_client_secrets_file(
-        "credentials.json", SCOPES
-    )
-    creds = flow.run_local_server(port=0)
+    if os.path.exists('token.json'):
+        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
 
-    with open("token.json", "w") as f:
-        f.write(creds.to_json())
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
+            creds = flow.run_local_server(port=0)
+        with open('token.json', 'w') as f:
+            f.write(creds.to_json())
 
-    return creds
-
+    return build('calendar', 'v3', credentials=creds)
 
 def create_meeting(state : State):
 
@@ -102,8 +104,7 @@ def create_meeting(state : State):
     start_date_time=meet_dict.get('start_date_time')
     end_date_time=meet_dict.get('end_date_time')
 
-    creds = get_creds()
-    service = build("calendar", "v3", credentials=creds)
+    service = get_calendar_service()
 
     event = {
         "summary": summary,
@@ -128,8 +129,8 @@ def create_meeting(state : State):
     ).execute()
 
     return {
-        'Meet_link' : event["hangoutLink"]
-    }
+        'Meet_link' : event["hangoutLink"],
+        'messages' : [AIMessage(content=f'meeting link {event["hangoutLink"]}')]    }
 
 def review_meeting(state: State):
     response= interrupt({
@@ -147,7 +148,7 @@ def review_meeting(state: State):
         feedback=None
 
     if decision == 'approve':
-        return Command(goto=END)
+        return Command(goto=END, update={'Meet_feedback' : None})
     
     else:
         return Command(
