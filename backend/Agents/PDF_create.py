@@ -331,7 +331,6 @@ def inject_font_html(html, font_path: str) -> str:
     html = html.replace("</head>", f"{font_face}</head>")
     return html
 
-from pathlib import Path
 
 def Agent2(state : State):
     agent1_output=state['Agent1Output']
@@ -486,6 +485,6 @@ INPUT JSON:
     html_to_pdf(html, output_path='./PDF/report.pdf')
     return {
         "pdf_html": html,
-        "messages": [AIMessage(content=f"Report generated successfully at path {Path(/PDF/report.pdf)}")]
+        "messages": [AIMessage(content=f"Report generated successfully at path ./PDF/report.pdf")]
     }
     

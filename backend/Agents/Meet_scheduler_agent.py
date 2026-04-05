@@ -152,7 +152,7 @@ def review_meeting(state: State):
     
     else:
         return Command(
-            goto='Scheduler_Agent',
+            goto='Schedule_Meeting',
             update={'Meet_feedback' : feedback}
         )
     

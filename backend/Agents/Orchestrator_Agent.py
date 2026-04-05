@@ -73,7 +73,7 @@ Include:
 
 ### PDF_agent
 Include:
-- content to summarize
+- to create a insight report/PDF of the project being discussed
 - format (brief/detailed)
 - title if relevant
 
@@ -87,6 +87,7 @@ Include:
 - project/idea
 - break into actionable tasks
 - include priorities or sequence
+- assign work to team members
 
 ### General_agent
 Include:

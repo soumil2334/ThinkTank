@@ -6,6 +6,8 @@ from langgraph.graph.message import add_messages, BaseMessage
 class State(TypedDict):
     messages : Annotated[list[BaseMessage], add_messages]
 
+    Ai_trigger : Optional[bool]
+    
     #LLM output for agent
     LLM_instruction : Optional[str]
     next : Optional[str]
