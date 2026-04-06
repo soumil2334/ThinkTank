@@ -6,7 +6,7 @@ A real-time collaborative AI workspace where teams brainstorm together and summo
 
 ## Architecture
 
-<!-- Insert architecture diagram here -->
+![ThinkTank Architecture](output.png)
 
 ---
 
