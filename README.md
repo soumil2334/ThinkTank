@@ -10,7 +10,7 @@ A real-time collaborative AI workspace where teams brainstorm together and summo
 
 ---
 
-## Project Demi
+## Project Demo
 
 [![ThinkTank](template.png)](https://youtu.be/7aKSvQkGTgc)
 
