@@ -121,20 +121,20 @@ def Board_members_list(state: State):
 def Extract_tasks(state : State):
     print(f'Trello Agent called')
     start=time.time()
-    conversation_history = ''
-    
     board_name=state['board_name']
 
     messages = state['messages']
+    conversation_history = ''
+    
+    messages = state['messages']
     for message in messages:
         if isinstance(message, HumanMessage):
+            content=str(message.content).lower().split(' ')
+            if '@AI' or '@ai' or '@Ai' in content:
+                continue
             conversation_history+= f"Role : Human, Content : {message.content}\n"
         if isinstance(message, AIMessage):
             conversation_history+= f"Role : Assistant, Content : {message.content}\n"
-        if isinstance(message, SystemMessage):
-            conversation_history+= f"Role : System , Content : {message.content}\n"
-        if isinstance(message, ToolMessage):
-            conversation_history+= f"Role : Tool Call, Content : {message.content}\n"
     
     members=state['members_list']
     members_info=''

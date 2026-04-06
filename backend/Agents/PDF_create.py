@@ -97,13 +97,12 @@ def Agent1(state:State):
     messages = state['messages']
     for message in messages:
         if isinstance(message, HumanMessage):
+            content=str(message.content).lower().split(' ')
+            if '@AI' or '@ai' or '@Ai' in content:
+                continue
             conversation_history+= f"Role : Human, Content : {message.content}\n"
         if isinstance(message, AIMessage):
             conversation_history+= f"Role : Assistant, Content : {message.content}\n"
-        if isinstance(message, SystemMessage):
-            conversation_history+= f"Role : System , Content : {message.content}\n"
-        if isinstance(message, ToolMessage):
-            conversation_history+= f"Role : Tool Call, Content : {message.content}\n"
     
     prompt = '''
 You are an Advanced Project Intelligence Agent AND a Visual Report Designer.
