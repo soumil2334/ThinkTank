@@ -57,7 +57,7 @@ body::after{
 }
 
 .login-logo{display:flex;align-items:center;gap:16px;margin-bottom:48px;}
-.login-logo img{width:72px;height:72px;object-fit:contain;filter:drop-shadow(0 0 18px var(--green));}
+.login-logo img{width:220px;height:auto;object-fit:contain;filter:drop-shadow(0 0 18px var(--green));}
 .login-logo-text{font-family:'Rajdhani',sans-serif;font-size:42px;font-weight:700;letter-spacing:4px;color:var(--green);text-shadow:0 0 30px var(--green);}
 
 .login-box{
@@ -96,7 +96,7 @@ header{
   position:relative;z-index:10;
 }
 .header-left{display:flex;align-items:center;gap:14px;}
-.header-logo{width:36px;height:36px;object-fit:contain;filter:drop-shadow(0 0 10px var(--green));}
+.header-logo{width:160px;height:auto;object-fit:contain;filter:drop-shadow(0 0 10px var(--green));}
 .header-title{font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;letter-spacing:3px;color:var(--green);text-shadow:0 0 15px rgba(0,230,118,0.5);}
 .header-right{display:flex;align-items:center;gap:16px;}
 .user-badge{
@@ -395,6 +395,19 @@ header{
 ::-webkit-scrollbar{width:4px;height:4px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* ── Agent Progress ── */
+.node-item{display:flex;align-items:center;gap:10px;padding:7px 12px;border-radius:8px;font-size:12px;font-weight:500;color:var(--text-muted);transition:all .2s;}
+.node-item.done{color:var(--green);}
+.node-item.waiting{color:var(--amber);}
+.node-item.running{color:var(--text-dim);}
+.node-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.node-dot.done{background:var(--green);box-shadow:0 0 6px var(--green);}
+.node-dot.waiting{background:var(--amber);box-shadow:0 0 6px var(--amber);animation:pulse 1s infinite;}
+    .node-dot.running{background:var(--text-muted);animation:pulse .6s infinite;}
+
+
+
 </style>
 </head>
 <body>
@@ -402,8 +415,7 @@ header{
 <!-- ══ LOGIN ══ -->
 <div id="login-screen">
   <div class="login-logo">
-    <img src="1775435910823_image.png" alt="ThinkTank" id="logo-img" onerror="this.style.display='none'"/>
-    <div class="login-logo-text">THINKTANK</div>
+    <img src="/static/thinktank.png" alt="ThinkTank" id="logo-img" onerror="this.style.display='none'"/>
   </div>
   <div class="login-box">
     <h2>Join Session</h2>
@@ -419,8 +431,7 @@ header{
 <div id="app">
   <header>
     <div class="header-left">
-      <img class="header-logo" src="1775435910823_image.png" alt="" onerror="this.style.display='none'"/>
-      <div class="header-title">THINKTANK</div>
+      <img class="header-logo" src="static/thinktank.png" alt="" onerror="this.style.display='none'"/>
     </div>
     <div class="header-right">
       <div class="online-indicator">
@@ -442,6 +453,11 @@ header{
     <div class="sidebar">
       <div class="sidebar-section">Members</div>
       <div id="member-list"></div>
+
+  <!-- ── Agent Progress ── -->
+      <div class="sidebar-section" id="progress-section" style="display:none;">Progress</div>
+      <div id="node-progress-list"></div>
+
       <div class="sidebar-section" style="margin-top:auto;">Commands</div>
       <div class="sidebar-item" style="cursor:default;">
         <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-muted);">@AI — trigger assistant</span>
@@ -497,22 +513,57 @@ function doLogin() {
 
 // ══ WebSocket ══
 function connectWS() {
-  ws = new WebSocket(`ws://localhost:8000/ws`);
-  ws.onopen    = () => { addSystemMsg('Connected to ThinkTank'); addMember(myUsername, true); };
-  ws.onmessage = e => handleServer(JSON.parse(e.data));
-  ws.onclose   = () => { addSystemMsg('Disconnected — reconnecting…'); setTimeout(connectWS, 2000); };
-  ws.onerror   = () => ws.close();
-}
+  // guard — don't create a new connection if one already exists
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
 
+  ws = new WebSocket(`ws://localhost:8000/ws`);
+
+  ws.onopen = () => {
+    addSystemMsg('Connected to ThinkTank');
+    addMember(myUsername, true);
+  };
+
+  ws.onmessage = e => handleServer(JSON.parse(e.data));
+
+  ws.onclose = () => {
+    ws = null;  // clear the reference so the guard above lets reconnect through
+    addSystemMsg('Disconnected — reconnecting…');
+    setTimeout(connectWS, 2000);
+  };
+
+  ws.onerror = () => {
+    ws.close();  // triggers onclose which handles reconnect
+  };
+}
 function sendRaw(obj) { if(ws && ws.readyState===1) ws.send(JSON.stringify(obj)); }
 
 // ══ Incoming ══
 function handleServer(msg) {
   const role = msg.role || msg.type || '';
+  
+  if (msg.type === 'close_interrupt') {
+        closeInterrupt();
+        isInterrupt = false;
+        return;
+  }
+  
+  if (msg.type === 'node_update') {
+    updateNodeProgress(msg.node, msg.status);
+    return;
+  }
+
+  if (msg.type === 'node_clear') {
+    setTimeout(() => {
+        document.getElementById('node-progress-list').innerHTML = '';
+        document.getElementById('progress-section').style.display = 'none';
+    }, 2000); // keep visible for 2s after completion
+    return;
+  }
 
   // Human message from another user
   if (role === 'human') {
-    addUserMsg(msg.username, msg.text, msg.username === myUsername);
+    if (msg.username === myUsername) return;
+    addUserMsg(msg.username, msg.text, false);
     addMember(msg.username, false);
     return;
   }
@@ -561,6 +612,39 @@ function handleServer(msg) {
   }
 }
 
+function updateNodeProgress(nodeName, status) {
+    // show the section
+    document.getElementById('progress-section').style.display = 'block';
+
+    const list = document.getElementById('node-progress-list');
+
+    // check if this node already exists in the list
+    let existing = document.getElementById('node-' + nodeName.replace(/\s/g, '_'));
+
+    if (!existing) {
+        // create new node item
+        existing = document.createElement('div');
+        existing.className = 'node-item running';
+        existing.id = 'node-' + nodeName.replace(/\s/g, '_');
+        existing.innerHTML = `
+            <div class="node-dot running"></div>
+            <span>${nodeName}</span>
+        `;
+        list.appendChild(existing);
+    }
+
+    // update status
+    existing.className = 'node-item ' + status;
+    const dot = existing.querySelector('.node-dot');
+    dot.className = 'node-dot ' + status;
+
+    // add checkmark for done, pause icon for waiting
+    const label = existing.querySelector('span');
+    if (status === 'done')    label.textContent = nodeName + ' ✓';
+    if (status === 'waiting') label.textContent = nodeName + ' ⏸';
+}
+
+
 // ══ Send ══
 function sendMessage() {
   const input = document.getElementById('message-input');
@@ -595,22 +679,30 @@ function closeInterrupt() {
 }
 
 // ══ Render Interrupt ══
+// single unified renderInterrupt — remove both old ones and replace with this
 function renderInterrupt(msg) {
-  const type = msg.subtype;
-  const data  = msg.data || {};
-  const panel = document.getElementById('interrupt-panel');
+    // capture board outline for Trello editing
+    if (msg.subtype === 'Assign_task') {
+        liveBoardOutline = JSON.parse(JSON.stringify(
+            (msg.data?.initial_values?.Board_Outline) || {}
+        ));
+    }
 
-  if (type === 'Email_agent') {
-    panel.innerHTML = buildEmailPanel(data);
-  } else if (type === 'Meet_scheduler_agent') {
-    panel.innerHTML = buildMeetPanel(data);
-  } else if (type === 'Assign_task') {
-    panel.innerHTML = buildBoardPanel(data);
-  } else {
-    panel.innerHTML = buildGenericPanel(data, type);
-  }
+    const type  = msg.subtype;
+    const data  = msg.data || {};
+    const panel = document.getElementById('interrupt-panel');
 
-  document.getElementById('interrupt-overlay').classList.add('active');
+    if (type === 'Email_agent') {
+        panel.innerHTML = buildEmailPanel(data);
+    } else if (type === 'Meet_scheduler_agent') {
+        panel.innerHTML = buildMeetPanel(data);
+    } else if (type === 'Assign_task') {
+        panel.innerHTML = buildBoardPanel(data);
+    } else {
+        panel.innerHTML = buildGenericPanel(data, type);
+    }
+
+    document.getElementById('interrupt-overlay').classList.add('active');
 }
 
 // ── Email Panel ──
@@ -731,38 +823,157 @@ window.meetReject  = function() {
 
 // ── Board / Trello Panel ──
 function buildBoardPanel(data) {
-  const initial = data.initial_values || {};
-  const outline = initial.Board_Outline || {};
-  const pretty  = JSON.stringify(outline, null, 2);
+    const initial = data.initial_values || {};
+    const outline = initial.Board_Outline || {};
+    const boardName = outline.Board_name || 'Trello Board';
+    const lists = outline.lists || [];
 
-  return `
-  <div class="interrupt-header">
-    <div class="interrupt-title">Review Trello Board</div>
-    <div class="interrupt-tag">HITL · Task Assign</div>
-  </div>
-  <div class="interrupt-body">
-    <div class="field-group">
-      <label class="field-label">Board Outline — edit if needed</label>
-      <textarea class="field-textarea" id="bf-outline" rows="14" style="min-height:260px;">${esc(pretty)}</textarea>
+    const listsHTML = lists.map((list, listIdx) => {
+        const cardsHTML = list.cards.map((card, cardIdx) => {
+            const checklistsHTML = card.checklists.map(cl => `
+                <div class="tl-checklist">
+                    <div class="tl-checklist-name">☑ ${esc(cl.name)}</div>
+                    ${cl.items.map(item => `
+                        <div class="tl-checklist-item">
+                            <span class="tl-check-box"></span>
+                            <span>${esc(item.name)}</span>
+                        </div>`).join('')}
+                </div>`).join('');
+
+            const dueDate = card.due_date
+                ? new Date(card.due_date).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'})
+                : null;
+
+            return `
+            <div class="tl-card" data-list="${listIdx}" data-card="${cardIdx}">
+                <div class="tl-card-name" contenteditable="true"
+                     onblur="updateBoard(${listIdx},${cardIdx},'name',this.textContent)">
+                    ${esc(card.name)}
+                </div>
+                <div class="tl-card-desc" contenteditable="true"
+                     onblur="updateBoard(${listIdx},${cardIdx},'description',this.textContent)">
+                    ${esc(card.description)}
+                </div>
+                ${checklistsHTML}
+                <div class="tl-card-footer">
+                    ${dueDate ? `<span class="tl-due">📅 ${dueDate}</span>` : ''}
+                    <span class="tl-assignee">👤 ${esc(card.assignee.slice(-6))}</span>
+                </div>
+            </div>`;
+        }).join('');
+
+        return `
+        <div class="tl-list">
+            <div class="tl-list-header" contenteditable="true"
+                 onblur="updateListName(${listIdx},this.textContent)">
+                ${esc(list.name)}
+            </div>
+            <div class="tl-cards" id="tl-list-${listIdx}">
+                ${cardsHTML}
+            </div>
+        </div>`;
+    }).join('');
+
+    return `
+    <style>
+        .tl-board-title{
+            font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;
+            color:var(--green);letter-spacing:2px;padding:16px 20px 0;
+        }
+        .tl-board{
+            display:flex;gap:14px;padding:16px 20px;overflow-x:auto;
+            min-height:300px;max-height:60vh;
+        }
+        .tl-board::-webkit-scrollbar{height:4px;}
+        .tl-board::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+        .tl-list{
+            min-width:220px;max-width:220px;
+            background:var(--bg3);border:1px solid var(--border);
+            border-radius:8px;display:flex;flex-direction:column;flex-shrink:0;
+        }
+        .tl-list-header{
+            font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;
+            letter-spacing:1px;color:var(--green);text-transform:uppercase;
+            padding:10px 12px;border-bottom:1px solid var(--border);
+            outline:none;cursor:text;
+        }
+        .tl-list-header:focus{background:var(--bg4);}
+        .tl-cards{display:flex;flex-direction:column;gap:8px;padding:10px 8px;overflow-y:auto;flex:1;}
+        .tl-cards::-webkit-scrollbar{width:3px;}
+        .tl-cards::-webkit-scrollbar-thumb{background:var(--border);}
+        .tl-card{
+            background:var(--surface2);border:1px solid var(--border);
+            border-radius:6px;padding:10px 10px 8px;
+            transition:border-color .15s;
+        }
+        .tl-card:hover{border-color:var(--border-bright);}
+        .tl-card-name{
+            font-size:13px;font-weight:500;color:var(--text);
+            margin-bottom:6px;outline:none;cursor:text;
+            border-bottom:1px solid transparent;transition:border-color .15s;
+        }
+        .tl-card-name:focus{border-bottom-color:var(--green);}
+        .tl-card-desc{
+            font-size:11px;color:var(--text-muted);line-height:1.5;
+            margin-bottom:8px;outline:none;cursor:text;
+        }
+        .tl-card-desc:focus{color:var(--text-dim);}
+        .tl-checklist{margin-bottom:6px;}
+        .tl-checklist-name{
+            font-family:'JetBrains Mono',monospace;font-size:10px;
+            color:var(--green);margin-bottom:4px;letter-spacing:.5px;
+        }
+        .tl-checklist-item{
+            display:flex;align-items:flex-start;gap:6px;
+            font-size:11px;color:var(--text-muted);padding:2px 0;line-height:1.4;
+        }
+        .tl-check-box{
+            width:10px;height:10px;border:1px solid var(--text-muted);
+            border-radius:2px;flex-shrink:0;margin-top:2px;
+        }
+        .tl-card-footer{
+            display:flex;align-items:center;justify-content:space-between;
+            margin-top:8px;padding-top:6px;border-top:1px solid var(--border);
+        }
+        .tl-due{font-size:10px;color:var(--amber);font-family:'JetBrains Mono',monospace;}
+        .tl-assignee{
+            font-size:10px;color:var(--text-muted);
+            font-family:'JetBrains Mono',monospace;
+        }
+        .tl-feedback-row{padding:0 20px 16px;display:flex;flex-direction:column;gap:6px;}
+    </style>
+
+    <div class="interrupt-header">
+        <div class="interrupt-title">Review Trello Board</div>
+        <div class="interrupt-tag">HITL · Task Assign</div>
     </div>
-    <div class="field-group">
-      <label class="field-label">Status</label>
-      <select class="field-select" id="bf-status">
-        <option value="approved">Approved</option>
-        <option value="rejected">Rejected — regenerate</option>
-      </select>
+
+    <div class="tl-board-title">${esc(boardName)}</div>
+    <div class="tl-board" id="tl-board">${listsHTML}</div>
+
+    <div class="tl-feedback-row">
+        <label class="field-label">Feedback (if rejecting)</label>
+        <input class="field-input" id="bf-feedback" placeholder="e.g. add a testing phase, change assignees…"/>
     </div>
-    <div class="field-group" id="bf-feedback-group" style="display:none;">
-      <label class="field-label">Feedback for regeneration</label>
-      <input class="field-input" id="bf-feedback" placeholder="e.g. add a testing phase"/>
-    </div>
-  </div>
-  <div class="interrupt-actions">
-    <button class="btn-reject" onclick="boardReject()">REJECT</button>
-    <button class="btn-approve" onclick="boardApprove()">APPROVE</button>
-  </div>`;
+
+    <div class="interrupt-actions">
+        <button class="btn-reject" onclick="boardReject()">REJECT</button>
+        <button class="btn-approve" onclick="boardApprove()">APPROVE & CREATE</button>
+    </div>`;
+}
+// store the live board outline so edits are captured
+let liveBoardOutline = null;
+
+
+function updateBoard(listIdx, cardIdx, field, value) {
+    if (!liveBoardOutline) return;
+    liveBoardOutline.lists[listIdx].cards[cardIdx][field] = value.trim();
 }
 
+function updateListName(listIdx, value) {
+    if (!liveBoardOutline) return;
+    liveBoardOutline.lists[listIdx].name = value.trim();
+}
 // show feedback field when rejected selected
 document.addEventListener('change', e => {
   if (e.target.id === 'bf-status') {
@@ -772,13 +983,11 @@ document.addEventListener('change', e => {
 });
 
 window.boardApprove = function() {
-  let outline;
-  try { outline = JSON.parse(v('bf-outline')); }
-  catch { alert('Invalid JSON in outline — please fix before approving.'); return; }
-  resumeCommand({ status: 'approved', Board_Outline: outline });
+    resumeCommand({ status: 'approved', Board_Outline: liveBoardOutline });
 };
+
 window.boardReject = function() {
-  resumeCommand({ status: 'rejected', feedback: v('bf-feedback') });
+    resumeCommand({ status: 'rejected', feedback: v('bf-feedback') });
 };
 
 // ── Generic fallback ──

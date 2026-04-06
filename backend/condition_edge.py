@@ -1,13 +1,19 @@
 from backend.Agents.Common_State import State
 
-def Pass_AI(state:State):
-    user_message=state.get('messages', '')
-    words=str(user_message).strip().split(' ')
-    ai_trigger_bool='CHAT'
-    if '@AI' or '@Ai' or '@ai' in words:
-        ai_trigger_bool='AI'
-
-    return ai_trigger_bool
+def Pass_AI(state: State):
+    messages = state.get('messages', [])
+    
+    if not messages:
+        return 'CHAT'
+    
+    last_message = messages[-1].content.lower()
+    print(f"[Pass_AI] last message: '{last_message}'")
+    print(f"[Pass_AI] @ai found: {'@ai' in last_message}")
+    
+    if '@ai' in last_message:
+        return 'AI'
+    
+    return 'CHAT'
 
 def orchestrator_function(state : State):
     next=state.get('next', '')

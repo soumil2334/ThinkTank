@@ -119,6 +119,7 @@ def Board_members_list(state: State):
 
 
 def Extract_tasks(state : State):
+    print(f'Trello Agent called')
     start=time.time()
     conversation_history = ''
     
@@ -266,11 +267,11 @@ def human_review(state : State):
             "Board_Outline": state["board_outline"]
         }
     })
-    
+    print('HITL_Trello resumed')
     changes = response.get('Board_Outline', '') # if only minor changes
     approval = response.get('status', '') # if start agent again
     feedback = response.get('feedback', '')
-
+    print(response)
     if approval=='approved':
         return Command(
             goto='Trello',

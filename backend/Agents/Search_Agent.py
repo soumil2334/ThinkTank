@@ -15,16 +15,20 @@ from ddgs import DDGS
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 import requests
+from datetime import datetime
+import pytz
 
 load_dotenv()
 client = OpenAI()
+
+tz = pytz.timezone("Asia/Kolkata")
+today=datetime.now(tz)
 
 def search(query: str):
     with DDGS() as ddgs:
         results = ddgs.text(
             query,
-            max_results=15,
-            timelimit="m"   # "d", "w", "m", "y"
+            max_results=15
         )
         return list(results)
 
@@ -55,9 +59,14 @@ def get_words_list(text: str):
     return final_words
 
 def keyword_score(sentence : str, body:str):
+    
     sentence_list=get_words_list(sentence)
 
     body_word_list=get_words_list(body)
+
+    if not body_word_list: 
+        return 0.0
+
     sentence_set=set(sentence_list)
     score=0
     for a in body_word_list:
@@ -92,18 +101,27 @@ def filter_list(query, A_dict_list):
 
 def get_html_content(url):
     headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                  "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
-    html=requests.get(url, headers=headers).text
-    content=trafilatura.extract(html)
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    
+    try:
+        html = requests.get(url, headers=headers, timeout=10).text
+        content = trafilatura.extract(html)
+    except Exception:
+        content = None
 
     if not content or len(content) < 150:
-        driver = webdriver.Chrome()
-        driver.get(url)
-        html = driver.page_source
-        content=trafilatura.extract(html)
-        driver.quit()
-    return str(content)
+        try:
+            driver = webdriver.Chrome()
+            driver.get(url)
+            html = driver.page_source
+            content = trafilatura.extract(html)
+            driver.quit()
+        except Exception:
+            content = ''
+
+    return str(content) if content else ''
 
 def chunk_text(text):
     splitter = RecursiveCharacterTextSplitter(
@@ -138,48 +156,60 @@ def bm25_retrieve(text:str, query:str):
     return ranked_sentences
 
 
-def get_webpage(query:str, A_dict_list: list):
+def get_webpage(query: str, A_dict_list: list):
+    filtered_list = filter_list(query=query, A_dict_list=A_dict_list)
 
-    filtered_list=filter_list(query=query, A_dict_list=A_dict_list)
+    if len(filtered_list) > 4:
+        filtered_list = filtered_list[:4]
 
-    if len(filtered_list)>4:
-        filtered_list=filtered_list[:4]
+    web_content_chunks = {}
 
-    web_content_chunks={}
-    
     for filter in filtered_list:
-        semantic_similar_sentence=[]
-        website=str(filter.get('href'))
-        
-        content=get_html_content(website)
+        website = str(filter.get('href'))
 
-        sentences=bm25_retrieve(text=content, query=query)
+        try:
+            content = get_html_content(website)
 
-        response = client.embeddings.create(
+            # skip if content is empty or too short
+            if not content or len(content) < 50:
+                continue
+
+            sentences = bm25_retrieve(text=content, query=query)
+
+            if not sentences:
+                continue
+
+            response = client.embeddings.create(
                 model="text-embedding-3-small",
                 input=[query] + sentences
-                )
-        
-        embeddings = [item.embedding for item in response.data]
-        query_embedding = embeddings[0]
-        sentence_embeddings = embeddings[1:]
-        scores = cosine_similarity([query_embedding], sentence_embeddings)[0]
+            )
 
-        results = sorted(
-            zip(sentences, scores),
-            key=lambda x: x[1],
-            reverse=True)
-        
-        web_content_chunks[website]=results[:7]
-    
+            embeddings = [item.embedding for item in response.data]
+            query_embedding = embeddings[0]
+            sentence_embeddings = embeddings[1:]
+            scores = cosine_similarity([query_embedding], sentence_embeddings)[0]
+
+            results = sorted(
+                zip(sentences, scores),
+                key=lambda x: x[1],
+                reverse=True
+            )
+
+            web_content_chunks[website] = results[:7]
+
+        except Exception as e:
+            print(f"[Search] skipping {website}: {e}")
+            continue
+
     return web_content_chunks
     
 
 def Search_agent(state:State):
+    print("search agent started")
     query = state['LLM_instruction']
-    
+    print(query)
     search_results=search(query=query)
-
+    print(search_results)
     web_search_dict=get_webpage(query, search_results)
 
     search_string=''
@@ -240,6 +270,8 @@ Generate a **clear, accurate, and concise answer** to the query using only the p
 
    * Do not mention “search results”, “provided context”, or similar phrases
 
+8. **Strictly ensure that results that are more recent with respect to today's date will given more preference**
+
 ## Output Requirements
 
 * Clear and human-readable
@@ -253,6 +285,10 @@ Produce a response that feels like a **single, well-written answer**, even thoug
 """
     
     user_message=f"""
+
+Date for reference :
+{today}
+
 Query :
 {query}
 
@@ -260,11 +296,11 @@ Web Results:
 {search_string}
 
 Answer the query using the above results.
-"""
+""" 
     
     llm=ChatOpenAI(model='gpt-4o-mini')
     response=llm.invoke([SystemMessage(content=instruction), HumanMessage(content=user_message)])
-
+    print(response)
     return {
         'messages' : [AIMessage(content=response.content)]
     }

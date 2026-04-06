@@ -16,7 +16,7 @@ class Email_Arguments(BaseModel):
     body: str = Field(description='Well-structured email body containing the complete message, written clearly and professionally, suitable to be sent directly to the recipient.')
 
 def Email_agent(state : State):
-
+    print('Email Agent calleed')
     feedback=state.get('Email_Feedback', None)
     last_generated_body=state.get('body', '')
 
@@ -86,6 +86,7 @@ Produce a clean, professional email draft that can be easily finalized by a huma
 """
     response=structured_llm.invoke([HumanMessage(content=instruction)])
     app_password=os.getenv('GOOGLE_MAIL')
+    print(response)
     return {
         'subject' : response.subject,
         'body' : response.body
@@ -93,6 +94,7 @@ Produce a clean, professional email draft that can be easily finalized by a huma
 
 
 def review_node(state: State):
+    print('HITL Called')
     user_input = interrupt({
     "type": "Email_agent",
     "fields": [
@@ -107,7 +109,7 @@ def review_node(state: State):
         "subject": state["subject"],
         "body": state["body"]
     }})
-
+    print('HITL_Trello resumed')
     updated_subject = user_input.get("subject", state["subject"])
     updated_body = user_input.get("body", state["body"])
     status = user_input.get("status")
@@ -115,6 +117,7 @@ def review_node(state: State):
     to_email = user_input.get('to')
     cc=user_input.get('cc', None)
     bcc=user_input.get('bcc', None)
+    print(user_input)
 
     if status == "approved":
         return Command(

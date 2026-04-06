@@ -144,7 +144,8 @@ def review_meeting(state: State):
             "Meet_Link": state["Meet_link"]
         }
     })
-
+    print('HITL_scheduler resumed')
+    print(response)
     if isinstance(response, dict):
         decision= response.get('decision')
         feedback= response.get('feedback')

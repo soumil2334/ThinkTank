@@ -20,6 +20,7 @@ class Orchestration_Outline(BaseModel):
 
 
 async def Orchestrator_Agent(state : State):
+        print('Orchestration agent called')
         message=state['messages'][-1].content
         instruction=f'''instruction = f"""
 You are an orchestrator agent. Your job is to:
@@ -124,6 +125,8 @@ User message:
         
         structure_llm=llm.with_structured_output(Orchestration_Outline)
         response=structure_llm.invoke([SystemMessage(content=instruction), HumanMessage(content=message)])
+        print(response.LLM_instruction)
+        print(response.next)
         return {
                 'LLM_instruction' : response.LLM_instruction,
                 'next' : response.next
