@@ -10,6 +10,11 @@ A real-time collaborative AI workspace where teams brainstorm together and summo
 
 ---
 
+## Project Demi
+
+[![ThinkTank](template.png)](https://youtu.be/7aKSvQkGTgc)
+
+---
 ## What it does
 
 ThinkTank is a multi-user WebSocket chat application backed by a LangGraph multi-agent system. Teams can discuss ideas freely, and when they are ready, any user can trigger the AI with `@AI` to perform tasks like drafting emails, scheduling meetings, generating insight reports, searching the web, or creating Trello boards — all without leaving the conversation.
