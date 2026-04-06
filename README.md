@@ -4,20 +4,18 @@ A real-time collaborative AI workspace where teams brainstorm together and summo
 
 ---
 
+## Architecture
+
+<!-- Insert architecture diagram here -->
+
+---
+
 ## What it does
 
 ThinkTank is a multi-user WebSocket chat application backed by a LangGraph multi-agent system. Teams can discuss ideas freely, and when they are ready, any user can trigger the AI with `@AI` to perform tasks like drafting emails, scheduling meetings, generating insight reports, searching the web, or creating Trello boards — all without leaving the conversation.
 
 Every action that involves real-world consequences (sending an email, creating a calendar event, pushing to Trello) requires **human approval** before it executes. All connected users must vote to approve before the action proceeds.
 
----
-
-## Architecture
-
-```
-## Architecture
-
-![ThinkTank Architecture](output.png)
 ---
 
 ## Agents
@@ -38,7 +36,7 @@ Every action that involves real-world consequences (sending an email, creating a
 
 Three agents pause for human review before taking action:
 
-- **Email Review** — shows a Gmail-style draft with editable From/To/CC/Subject/Body fields
+- **Email Review** — shows a Gmail-style draft with editable From, To, CC, Subject, and Body fields
 - **Meeting Review** — shows scheduled meeting details and the Google Meet link
 - **Trello Board Review** — shows an interactive Kanban board with editable cards and checklists
 
@@ -46,16 +44,16 @@ All users in the room must vote **Approve** before the action proceeds. A single
 
 ---
 
-## Project structure
+## Project Structure
 
 ```
 ThinkTank/
 ├── backend/
-│   ├── main.py                  # FastAPI app + WebSocket handler
-│   ├── Graph.py                 # LangGraph graph definition
-│   ├── condition_edge.py        # Pass_AI router + orchestrator router
+│   ├── main.py                   # FastAPI app + WebSocket handler
+│   ├── Graph.py                  # LangGraph graph definition
+│   ├── condition_edge.py         # Pass_AI router + orchestrator router
 │   └── Agents/
-│       ├── Common_State.py      # Shared TypedDict state
+│       ├── Common_State.py       # Shared TypedDict state
 │       ├── Orchestrator_Agent.py
 │       ├── Email_agent.py
 │       ├── Meet_scheduler_agent.py
@@ -64,10 +62,10 @@ ThinkTank/
 │       ├── Search_Agent.py
 │       └── general_agent.py
 ├── frontend/
-│   └── thinktank.html           # Single-file frontend
+│   └── thinktank.html            # Single-file frontend
 ├── static/
-│   └── thinktank.png            # Logo
-├── .env                         # API keys
+│   └── thinktank.png             # Logo
+├── .env                          # API keys
 └── requirements.txt
 ```
 
@@ -98,7 +96,7 @@ pip install fastapi uvicorn websockets langgraph langchain-openai \
 
 ### 3. Configure environment variables
 
-Create a `.env` file in the root:
+Create a `.env` file in the project root:
 
 ```env
 OPENAI_API_KEY=sk-...
@@ -151,34 +149,34 @@ Include `@AI` anywhere in your message:
 
 ### Approving HITL actions
 
-When the AI needs your sign-off, an overlay appears for all users. Everyone must click **Approve** for the action to proceed. Any user can **Reject** with feedback to regenerate.
+When the AI needs your sign-off, an overlay appears for all users in the room. Everyone must click **Approve** for the action to proceed. Any user can **Reject** with feedback to regenerate.
 
-### Agent progress
+### Agent progress tracker
 
 While the AI is working, the sidebar shows a live step-by-step progress tracker:
 
 ```
 PROGRESS
-● Orchestrator     ✓
-● Email Agent      ✓
-● Email Review     ⏸
+● Orchestrator      ✓
+● Email Agent       ✓
+● Email Review      ⏸
 ```
 
 ---
 
-## Key design decisions
+## Key Design Decisions
 
-**Shared LangGraph state** — all users write to the same `thread_id` in the checkpointer. Plain chat messages are stored via `update_state()` without triggering the graph. This gives the AI full conversation context when `@AI` is called.
+**Shared LangGraph state** — all users write to the same `thread_id` in the checkpointer. Plain chat messages are stored via `update_state()` without triggering the graph, giving the AI full conversation context when `@AI` is called.
 
 **Conditional graph entry** — `Pass_AI` is the first conditional edge. If the message contains `@AI` it routes to the Orchestrator. Otherwise the graph goes directly to `END` — no agent runs, the message is just stored.
 
 **HITL voting** — the `WebSocket_Manager` tracks votes per interrupt. The graph only resumes via `Command(resume=...)` once all users approve, or immediately if anyone rejects.
 
-**Agent streaming** — the server uses `graph.astream(stream_mode='updates')` so each node completion is broadcast to the frontend in real time as it happens.
+**Agent streaming** — the server uses `graph.astream(stream_mode="updates")` so each node completion is broadcast to the frontend in real time as it happens.
 
 ---
 
-## Environment variables reference
+## Environment Variables
 
 | Variable | Description |
 |---|---|
@@ -189,7 +187,7 @@ PROGRESS
 
 ---
 
-## Dependencies summary
+## Dependencies
 
 | Package | Purpose |
 |---|---|
