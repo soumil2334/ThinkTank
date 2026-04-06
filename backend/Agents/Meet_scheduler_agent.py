@@ -134,9 +134,15 @@ def create_meeting(state : State):
 
 def review_meeting(state: State):
     response= interrupt({
-        'type':'Review scheduled meeting',
-        'Meeting_Details' : state['Meet_dict'],
-        'Meet Link' : state['Meet_link']
+        "type": "Meet_scheduler_agent",
+        "fields": [
+            {"name": "decision", "type": "select", "options": ["approve", "reject"]},
+            {"name": "feedback", "type": "text"}
+        ],
+        "initial_values": {
+            "Meeting_Details": state["Meet_dict"],
+            "Meet_Link": state["Meet_link"]
+        }
     })
 
     if isinstance(response, dict):

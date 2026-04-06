@@ -94,9 +94,19 @@ Produce a clean, professional email draft that can be easily finalized by a huma
 
 def review_node(state: State):
     user_input = interrupt({
+    "type": "Email_agent",
+    "fields": [
+        {"name": "status", "type": "select", "options": ["approved", "rejected"]},
+        {"name": "subject", "type": "text"},
+        {"name": "body", "type": "textarea"},
+        {"name": "to", "type": "text"},
+        {"name": "cc", "type": "text"},
+        {"name": "bcc", "type": "text"}
+    ],
+    "initial_values": {
         "subject": state["subject"],
         "body": state["body"]
-    })
+    }})
 
     updated_subject = user_input.get("subject", state["subject"])
     updated_body = user_input.get("body", state["body"])
@@ -124,8 +134,7 @@ def review_node(state: State):
             goto="Email_Content",
             update={
                 "subject": updated_subject,
-                "body": updated_body,
-                "status": "rejected"
+                "body": updated_body
             }
         )
     

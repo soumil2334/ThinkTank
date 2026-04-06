@@ -256,10 +256,17 @@ Feedback : {state.get('Board_feedback', '')} For Output : {state.get('board_outl
 
 def human_review(state : State):
     response=interrupt({
-        'type' : 'Board review',
-        'Board_Name' : state['board_name'],
-        'Board_Outline' : state['board_outline']
+        "type": "Assign_task",
+        "fields": [
+            {"name": "status", "type": "select", "options": ["approved", "rejected"]},
+            {"name": "Board_Outline", "type": "textarea"},
+            {"name": "feedback", "type": "text"}
+        ],
+        "initial_values": {
+            "Board_Outline": state["board_outline"]
+        }
     })
+    
     changes = response.get('Board_Outline', '') # if only minor changes
     approval = response.get('status', '') # if start agent again
     feedback = response.get('feedback', '')
